@@ -64,38 +64,14 @@ function Replay:Play()
     print("Preparing replay playback")
     
     for frame, data in self._data.trackedData do
-        for userid, data in data do
+        for userid in data do
             if not self._rigs[userid] then
                 local Character = Players:CreateHumanoidModelFromUserId(userid)
                 Character.PrimaryPart.Anchored = true
                 Character.Parent = workspace
                 self._rigs[userid] = {
                     Rig = Character,
-                    Animations = {},
-                    PlayingAnimations = {}
                 }
-            end
-            
-            local AnimationData = data:split(";")[2]
-            local Animations = AnimationData:split(" ")
-
-            local Animator = self._rigs[userid].Rig:FindFirstChild("Animator", true)
-
-            for _, anim: string in Animations do
-                local Name = anim:split("-")[4]
-                local Priority = anim:split("-")[5]
-                anim = anim:split("-")[1]
-                if self._rigs[userid].Animations[anim] then continue end
-                local Animation = Instance.new("Animation")
-                Animation.AnimationId = anim
-                Animation.Name = Name
-
-                print("Loading animation", Animation.AnimationId)
-
-                local Track = Animator:LoadAnimation(Animation)
-                Track.Priority = Enum.AnimationPriority[Priority]
-
-                self._rigs[userid].Animations[anim] = Track
             end
         end
     end
@@ -127,59 +103,6 @@ function Replay:Play()
             local GoalPos = CFrame.new(table.unpack(CFData:split(" ")))
             local Pos = LastPos:Lerp(GoalPos, LerpTime)
             self._rigs[userid].Rig.PrimaryPart.CFrame = Pos
-
-            if self._lastFrame == Frame then
-                continue
-            end
-            
-            local AnimationData = data:split(";")[2]
-            local Animations = AnimationData:split(" ")
-
-            local Animator = self._rigs[userid].Rig:FindFirstChild("Animator", true)
-            
-            local AnimationIds = {}
-            
-            for _, anim: string in Animations do
-                local AnimationTrack = self._rigs[userid].Animations[anim:split("-")[1]]
-                -- if not AnimationTrack then
-                --     local Animation = Instance.new("Animation")
-                --     Animation.AnimationId = anim:split("-")[1]
-                
-                --     local Track = Animator:LoadAnimation(Animation)
-                --     Track.Priority = Enum.AnimationPriority[anim:split("-")[2]]
-                
-                --     self._rigs[userid].Animations[anim] = Track
-                
-                --     AnimationTrack = Track
-                -- end
-                
-                
-                table.insert(AnimationIds, AnimationTrack.Animation.AnimationId)
-                
-                AnimationTrack:AdjustSpeed(anim:split("-")[2])
-                if not table.find(self._rigs[userid].PlayingAnimations, AnimationTrack) then
-                    print("playing "..anim:split('-')[4])
-
-                    AnimationTrack:Play()
-                    AnimationTrack.TimePosition = anim:split("-")[3]
-                    table.insert(self._rigs[userid].PlayingAnimations, AnimationTrack)
-                end
-            end
-            self._lastFrame = Frame
-            
-            local remove = {}
-            for _, anim: AnimationTrack in self._rigs[userid].PlayingAnimations do
-                if not table.find(AnimationIds, anim.Animation.AnimationId) then
-                    print("Stopping animation", anim.Animation.Name)
-                    anim:Stop()
-                    table.insert(remove, anim)
-                    -- table.remove(self._rigs[userid].PlayingAnimations, table.find(self._rigs[userid].PlayingAnimations, anim))
-                end
-            end
-
-            for _,v in remove do
-                table.remove(self._rigs[userid].PlayingAnimations, table.find(self._rigs[userid].PlayingAnimations, v))
-            end
         end
 
         if Frame == self._data.totalFrames then

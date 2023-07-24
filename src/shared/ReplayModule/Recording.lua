@@ -6,15 +6,6 @@ local Console = require(script.Parent.Console)
 local Compression = require(script.Parent.Compression)
 Console.writeEnv()
 
--- // Local Functions
-
-local function Reverse(t)
-	for i = 1, math.floor(#t / 2) do
-		local j = #t - i + 1
-		t[i], t[j] = t[j], t[i]
-	end
-end
-
 local Recording = {}
 Recording.__index = Recording
 
@@ -68,45 +59,12 @@ function Recording:StartRecording()
 				local CFValues = table.pack(Character.PrimaryPart.CFrame:GetComponents())
 				CFValues["n"] = nil
 
-				local Animator: Animator = Character:FindFirstChild("Animator", true)
-				local AnimationTracks = Animator:GetPlayingAnimationTracks()
-				local AnimationIds = {}
-				local AnimationNames = {}
-
-				for _, v in AnimationTracks do
-					print(v.Animation.Name)
-					local val = v.Animation.AnimationId
-						.. "-"
-						.. string.format("%.2f", v.Speed)
-						.. "-"
-						.. v.TimePosition
-						.. "-"
-						.. v.Name
-						.. "-"
-						.. v.Priority.Name
-					AnimationNames[v.Animation.Name] = val
-					table.insert(AnimationIds, val)
-				end
-
-				if AnimationNames["WalkAnim"] and AnimationNames["RunAnim"] then
-					table.remove(AnimationIds, table.find(AnimationIds, AnimationNames["WalkAnim"]))
-					AnimationNames["WalkAnim"] = nil
-					-- print("Removed WalkAnim from recording")
-				end
-
-				if AnimationNames["FallAnim"] and (AnimationNames["Animation1"] or AnimationNames["RunAnim"]) then
-					print(AnimationNames["FallAnim"])
-					table.remove(AnimationIds, table.find(AnimationIds, AnimationNames["FallAnim"]))
-					AnimationNames["FallAnim"] = nil
-					print("Removed FallAnim from recording")
-				end
-
 				for i, v in CFValues do
 					-- CFValues[i] = math.floor(v * 100) / 100
 					CFValues[i] = string.format("%.2f", v)
 				end
 
-				local DataString = table.concat(CFValues, " ") .. ";" .. table.concat(AnimationIds, " ")
+				local DataString = table.concat(CFValues, " ")
 
 				Data[player.UserId] = DataString
 			end

@@ -6,6 +6,15 @@ local Console = require(script.Parent.Console)
 local Compression = require(script.Parent.Compression)
 Console.writeEnv()
 
+-- // Local Functions
+
+local function Reverse(t)
+	for i = 1, math.floor(#t / 2) do
+		local j = #t - i + 1
+		t[i], t[j] = t[j], t[i]
+	end
+end
+
 local Recording = {}
 Recording.__index = Recording
 
@@ -17,16 +26,16 @@ function Recording.new()
 	-- // Internal
 	self._recording = false
 	self._currentTime = 0
-    self._startTime = 0
+	self._startTime = 0
 	self._lastFrame = 0
-	self._totalFrames = 0 
-    self._framerate = 15
-    self._recordingSize = 0
+	self._totalFrames = 0
+	self._framerate = 15
+	self._recordingSize = 0
 	self._recordingId = HttpService:GenerateGUID(false)
 	self._trackedData = {}
 	self._eventData = {}
 	self._additionalData = {}
-    self._heartbeat = nil
+	self._heartbeat = nil
 
 	print("Created recording:", self)
 
@@ -39,93 +48,122 @@ function Recording:StartRecording()
 		return
 	end
 
-    self._recording = true
-    self._startTime = os.clock()
+	self._recording = true
+	self._startTime = os.clock()
 
-    self._heartbeat = game:GetService("RunService").Heartbeat:Connect(function()
-        local Frame = math.floor((os.clock() - self._startTime) * self._framerate)
-        if Frame ~= self._lastFrame then
-            self._lastFrame = Frame
-            self._totalFrames = Frame
-            self._currentTime = os.clock() - self._startTime
+	self._heartbeat = game:GetService("RunService").Heartbeat:Connect(function()
+		local Frame = math.floor((os.clock() - self._startTime) * self._framerate)
+		if Frame ~= self._lastFrame then
+			self._lastFrame = Frame
+			self._totalFrames = Frame
+			self._currentTime = os.clock() - self._startTime
 
-            local Data = {}
-            for _, player in self.Tracking do
-                local Character = player.Character
-                if not Character then
-                    continue
-                end
+			local Data = {}
+			for _, player in self.Tracking do
+				local Character = player.Character
+				if not Character or not Character.PrimaryPart then
+					continue
+				end
 
-                local CFValues = table.pack(Character:GetPivot():GetComponents())
-                CFValues["n"] = nil
+				local CFValues = table.pack(Character.PrimaryPart.CFrame:GetComponents())
+				CFValues["n"] = nil
 
-                local Animator: Animator = Character:FindFirstChild("Animator", true)
-                local AnimationTracks = Animator:GetPlayingAnimationTracks()
-                local AnimationIds = {}
+				local Animator: Animator = Character:FindFirstChild("Animator", true)
+				local AnimationTracks = Animator:GetPlayingAnimationTracks()
+				local AnimationIds = {}
+				local AnimationNames = {}
 
-                for _, v in AnimationTracks do
-                    table.insert(AnimationIds, v.Animation.AnimationId.."-"..v.Priority.Name)
-                end
+				for _, v in AnimationTracks do
+					print(v.Animation.Name)
+					local val = v.Animation.AnimationId
+						.. "-"
+						.. string.format("%.2f", v.Speed)
+						.. "-"
+						.. v.TimePosition
+						.. "-"
+						.. v.Name
+						.. "-"
+						.. v.Priority.Name
+					AnimationNames[v.Animation.Name] = val
+					table.insert(AnimationIds, val)
+				end
 
-                for i,v in CFValues do
-                    CFValues[i] = math.floor(v * 100) / 100
-                end
+				if AnimationNames["WalkAnim"] and AnimationNames["RunAnim"] then
+					table.remove(AnimationIds, table.find(AnimationIds, AnimationNames["WalkAnim"]))
+					AnimationNames["WalkAnim"] = nil
+					-- print("Removed WalkAnim from recording")
+				end
 
-                local DataString = table.concat(CFValues," ")..";"..table.concat(AnimationIds, " ")
-                
-                Data[player.UserId] = DataString
-            end
+				if AnimationNames["FallAnim"] and (AnimationNames["Animation1"] or AnimationNames["RunAnim"]) then
+					print(AnimationNames["FallAnim"])
+					table.remove(AnimationIds, table.find(AnimationIds, AnimationNames["FallAnim"]))
+					AnimationNames["FallAnim"] = nil
+					print("Removed FallAnim from recording")
+				end
 
-            self._trackedData[Frame] = Data
-        end
-    end)
+				for i, v in CFValues do
+					-- CFValues[i] = math.floor(v * 100) / 100
+					CFValues[i] = string.format("%.2f", v)
+				end
 
-    print("Recording started (".. self._recordingId ..")")
+				local DataString = table.concat(CFValues, " ") .. ";" .. table.concat(AnimationIds, " ")
+
+				Data[player.UserId] = DataString
+			end
+
+			self._trackedData[Frame] = Data
+		end
+	end)
+
+	print("Recording started (" .. self._recordingId .. ")")
 end
 
 function Recording:RecordEvent(EventName, EventData)
-    local Frame = math.floor((os.clock() - self._startTime) * self._framerate)
-    if not self._eventData[Frame] then
-        self._eventData[Frame] = {}
-    end
-    table.insert(self._eventData[Frame], {
-        name = EventName,
-        data = EventData
-    })
+	local Frame = math.floor((os.clock() - self._startTime) * self._framerate)
+	if not self._eventData[Frame] then
+		self._eventData[Frame] = {}
+	end
+	table.insert(self._eventData[Frame], {
+		name = EventName,
+		data = EventData,
+	})
 end
 
 function Recording:StopRecording()
-    if not self._recording then
-        warn("Not recording!")
-        return
-    end
-    
-    self._recording = false
-    self._heartbeat:Disconnect()
-    self._time = os.clock() - self._startTime
+	if not self._recording then
+		warn("Not recording!")
+		return
+	end
 
-    local DataNonCompresed = {
-        recordingId = self._recordingId,
-        framerate = self._framerate,
-        time = self._time,
-        totalFrames = self._totalFrames,
-        recordingSize = self._recordingSize,
-        trackedData = self._trackedData,
-        eventData = self._eventData,
-        additionalData = self._additionalData
-    }
+	self._recording = false
+	self._heartbeat:Disconnect()
+	self._time = os.clock() - self._startTime
 
-    local compressStart = os.clock()
-    self._compressedData = Compression.compress(HttpService:JSONEncode(DataNonCompresed))
-    print("Compression took:", os.clock() - compressStart)
-    
-    self._recordingSize = self._compressedData:len()
+	local DataNonCompresed = {
+		recordingId = self._recordingId,
+		framerate = self._framerate,
+		time = self._time,
+		totalFrames = self._totalFrames,
+		recordingSize = self._recordingSize,
+		trackedData = self._trackedData,
+		eventData = self._eventData,
+		additionalData = self._additionalData,
+	}
 
-    print("Compression percentage:", HttpService:JSONEncode(self._trackedData):len() / self._compressedData:len() * 100 .. "%")
+	local compressStart = os.clock()
+	self._compressedData = Compression.compress(HttpService:JSONEncode(DataNonCompresed))
+	print("Compression took:", os.clock() - compressStart)
 
-    print("Recording ended, Size:", self._recordingSize / 1000 .. "kb,", "Data:", self)
+	self._recordingSize = self._compressedData:len()
 
-    return self._compressedData
+	print(
+		"Compression percentage:",
+		HttpService:JSONEncode(self._trackedData):len() / self._compressedData:len() * 100 .. "%"
+	)
+
+	print("Recording ended, Size:", self._recordingSize / 1000 .. "kb,", "Data:", self)
+
+	return self._compressedData
 end
 
 function Recording:Track(player)

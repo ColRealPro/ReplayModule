@@ -79,7 +79,7 @@ function Recording:StartRecording()
 end
 
 function Recording:RecordEvent(EventName, EventData)
-	local Frame = math.floor((os.clock() - self._startTime) * self._framerate)
+	local Frame = tostring(math.floor((os.clock() - self._startTime) * self._framerate))
 	if not self._eventData[Frame] then
 		self._eventData[Frame] = {}
 	end

@@ -80,11 +80,14 @@ function Replay:Play()
 	end
 
     for frame=1, self._data.totalFrames do
-        if not self._data.trackedData[tostring(frame)] then
-            continue
+        if self._data.trackedData[tostring(frame)] then
+            self._data.trackedData[frame] = self._data.trackedData[tostring(frame)]
+            self._data.trackedData[tostring(frame)] = nil
         end
-        self._data.trackedData[frame] = self._data.trackedData[tostring(frame)]
-        self._data.trackedData[tostring(frame)] = nil
+        if self._data.eventData[tostring(frame)] then
+            self._data.eventData[frame] = self._data.eventData[tostring(frame)]
+            self._data.eventData[tostring(frame)] = nil
+        end
     end
 
 	print("Starting replay playback")
@@ -102,23 +105,39 @@ function Replay:Play()
             print("No frame data for frame", Frame)
 			return
 		end
+        local LastFrame = self._data.trackedData[Frame - 1] or FrameData
 
-		local LastFrame = self._data.trackedData[Frame - 1] or FrameData
 		for userid: number, data: string in FrameData do
 			if self._rigs[userid].Rig.Parent == nil then
 				self._rigs[userid].Rig.Parent = workspace
 			end
 			local LastData = LastFrame[userid]
-
+            
 			local CFData = data:split(";")[1]
 			local LastCFData = LastData:split(";")[1]
-
+            
 			local LastPos = CFrame.new(table.unpack(LastCFData:split(" ")))
 			local GoalPos = CFrame.new(table.unpack(CFData:split(" ")))
 			local Pos = LastPos:Lerp(GoalPos, LerpTime)
 			self._rigs[userid].Rig.PrimaryPart.CFrame = Pos
 		end
+        
+        if Frame == self._lastFrame then
+            return
+        end
+        if EventData then
+            for _, data in EventData do
+                local event = data.name
+                if not self._eventConnections[event] then
+                    continue
+                end
+                for _, callback in self._eventConnections[event] do
+                    callback(data.data)
+                end
+            end
+        end
 
+        self._lastFrame = Frame
 		if Frame >= self._data.totalFrames then
 			self:Stop()
 		end

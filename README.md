@@ -11,5 +11,5 @@ please.
 - [ ] Recording Animations
 - [X] Save Compression
 - [X] Replaying CFrames
-- [ ] Replaying Events
+- [X] Replaying Events
 - [ ] Replaying Animations 

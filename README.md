@@ -9,6 +9,7 @@ please.
 - [X] Recording CFrames
 - [X] Recording Events
 - [ ] Recording Animations
+- [X] Save Compression
 - [X] Replaying CFrames
 - [ ] Replaying Events
 - [ ] Replaying Animations 

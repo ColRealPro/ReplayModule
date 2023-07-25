@@ -23,7 +23,9 @@ function Recording.new()
 	self._framerate = 15
 	self._recordingSize = 0
 	self._recordingId = HttpService:GenerateGUID(false)
-	self._trackedData = {}
+	self._trackedData = {
+		["$NoArray"] = true,
+	}
 	self._eventData = {}
 	self._additionalData = {}
 	self._heartbeat = nil
@@ -69,7 +71,7 @@ function Recording:StartRecording()
 				Data[player.UserId] = DataString
 			end
 
-			self._trackedData[Frame] = Data
+			self._trackedData[tostring(Frame)] = Data
 		end
 	end)
 
